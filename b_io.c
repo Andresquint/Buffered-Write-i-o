@@ -1,7 +1,7 @@
 /**************************************************************
 * Class:  CSC-415-02 Summer 2020
-* Name: Robert Bierman
-* Student ID:
+* Name: Wameedh Mohammed Ali
+* Student ID: 920678405
 * Project: Assignment 5 – Buffered I/O
 *
 * File: b_io.c
@@ -28,6 +28,8 @@ typedef struct b_fcb
 	char * buf;		//holds the open file buffer
 	int index;		//holds the current position in the buffer
 	int buflen;		//holds how many valid bytes are in the buffer
+
+	int fileFlage;  // Holds the open file flag 
 	} b_fcb;
 	
 b_fcb fcbArray[MAXFCBS];
@@ -69,10 +71,9 @@ int b_open (char * filename, int flags)
 	int returnFd;
 	
 	//*** TODO ***:  Modify to save or set any information needed
+	// My Only modification here is that I added
 	//
-	//
-	
-	
+
 	if (startup == 0) b_init();  //Initialize our system
 	
 	// lets try to open the file before I do too much other work
@@ -85,7 +86,9 @@ int b_open (char * filename, int flags)
 	returnFd = b_getFCB();				// get our own file descriptor
 										// check for error - all used FCB's
 	fcbArray[returnFd].linuxFd = fd;	// Save the linux file descriptor
+	fcbArray[returnFd].fileFlage = (flags & O_ACCMODE); // set fileFlage int of struct b_fcb in our fcbArray  
 	//	release mutex
+
 	
 	//allocate our buffer
 	fcbArray[returnFd].buf = malloc (BUFSIZE);
@@ -108,6 +111,9 @@ int b_open (char * filename, int flags)
 // Interface to write a buffer	
 int b_write (int fd, char * buffer, int count)
 	{
+		
+	int bytesCopied;	// holds number of bytes we copy from the caller's buffer. This is what we return.
+
 	if (startup == 0) b_init();  //Initialize our system
 
 	// check that fd is between 0 and (MAXFCBS-1)
@@ -124,13 +130,31 @@ int b_write (int fd, char * buffer, int count)
 	//*** TODO ***:  Write buffered write function to accept the data and # bytes provided
 	//               You must use the Linux System Calls and you must buffer the data
 	//				 in 512 byte chunks and only write in 512 byte blocks.
+
+if( (fcbArray[fd].index + count) > BUFSIZE){
+	// check if what have been copied from the caller's buffer and what we are about to copy is larger than 512 bytes.
+	// When this is true we need to copy a number of bytes from the caller buffer that makes our buffer full up to 512
 	
-	//Remove the following line and replace with your buffered write function.
-	return (write(fcbArray[fd].linuxFd, buffer, count));
+	memcpy(fcbArray[fd].buf + fcbArray[fd].index,  buffer, BUFSIZE - fcbArray[fd].index); // copy from caller's buffer into our buffer, in our b_fcb.
+	bytesCopied = BUFSIZE - fcbArray[fd].index; // Number of bytes we coppied from the caller's buffer
+	write(fcbArray[fd].linuxFd, fcbArray[fd].buf, BUFSIZE); // writing data from our buffer into the file, 512 bytes.
+	
+	memcpy(fcbArray[fd].buf, buffer + bytesCopied, count - bytesCopied); // Tranfer the remaining bytes from the caller's buffer into the beginning of our buffer
+	fcbArray[fd].index = count - bytesCopied; // Track where we left in our buffer.
+} else {
+	// if what we have in our buffer + what been passed to us by the caller buffer is less than 512 the we just copy
+	memcpy(fcbArray[fd].buf + fcbArray[fd].index,  buffer, count); // copy "count" bytes from caller's buffer into our buffer, in our b_fcb.
+	bytesCopied = count; // Number of bytes we coppied from the caller's buffer
+	fcbArray[fd].index += count; // Track where we left in our buffer.
+
+	if(fcbArray[fd].index == BUFSIZE){ // if our buffer get filled after the previous instructions 
+		write(fcbArray[fd].linuxFd, fcbArray[fd].buf, BUFSIZE); // Write into the file
+		fcbArray[fd].index = 0;  // rest our index tracker of where we left in our buffer to 0.
 	}
 
-
-
+}
+	return bytesCopied; // return number of bytes that has been transferred from the caller's buffer into our buffer
+	}
 
 
 // Interface to read a buffer	
@@ -210,7 +234,13 @@ int b_read (int fd, char * buffer, int count)
 // Interface to Close the file	
 void b_close (int fd)
 	{
-	close (fcbArray[fd].linuxFd);		// close the linux file handle
+		if(fcbArray[fd].fileFlage == O_WRONLY){
+			// We check if the file was opended for write only if so then we would want to write the bytes that we trasfered to our buffer.
+			// We write into the file from our buffer up to where we our fcbArray[fd].index is pointing.
+			// The rest after that is just extra data from the previous write. We don't want to wtite that again.
+			write(fcbArray[fd].linuxFd, fcbArray[fd].buf, fcbArray[fd].index);
+		}
+	close (fcbArray[fd].linuxFd);		// close the linux file handle	
 	free (fcbArray[fd].buf);			// free the associated buffer
 	fcbArray[fd].buf = NULL;			// Safety First
 	fcbArray[fd].linuxFd = -1;			// return this FCB to list of available FCB's 

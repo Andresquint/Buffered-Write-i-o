@@ -1,10 +1,10 @@
 /**************************************************************
 * Class:  CSC-415-02 Summer 2020
-* Name: Robert Bierman
-* Student ID:
+* Name: Wameedh Mohammed Ali
+* Student ID: 920678405
 * Project: Assignment 5 – Buffered I/O
 *
-* File: Bierman_Robert_HW5_main.c
+* File: MohammedAli_Wameedh_HW5_main.c
 *
 * Description: Driver file to demo b_io - b_write
 *

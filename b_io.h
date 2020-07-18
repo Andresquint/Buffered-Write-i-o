@@ -1,12 +1,12 @@
 /**************************************************************
 * Class:  CSC-415-0# Summer 2020
-* Name:
-* Student ID:
-* Project: Assignment 2 – Buffered I/O
+* Name: Wameedh Mohammed Ali
+* Student ID: 920678405
+* Project: Assignment 5 – Buffered I/O
 *
 * File: b_io.h
 *
-* Description:
+* Description: header file for b_io.c
 *
 **************************************************************/
 
